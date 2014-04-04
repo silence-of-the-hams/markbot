@@ -48,12 +48,11 @@ Markbot.prototype._isSay = function(text) {
 };
 
 Markbot.prototype._recordForUser = function(userName, text) {
-  this._userText[userName] = this._userText[userName] || '';
-  this._userText[userName] += text;
+  this._userText[userName] = this._userText[userName] || [];
+  this._userText[userName].push(text);
 };
 
 Markbot.prototype.sayForUser = function(userName, limit, cb) {
-
   if (typeof limit == 'function') {
     cb = limit;
     limit = 10;
@@ -64,7 +63,7 @@ Markbot.prototype.sayForUser = function(userName, limit, cb) {
   }
 
   var m = markov(1),
-      userText = this._userText[userName],
+      userText = this._userText[userName].join(' '),
       self = this;
 
   if (!userText) {
@@ -75,7 +74,7 @@ Markbot.prototype.sayForUser = function(userName, limit, cb) {
   m.seed(userText, function() {
     var firstWord = m.pick(),
         rest = m.forward(firstWord, limit),
-        text = [firstWord].concat(rest).join(' ');
+        text = [userName, 'says', firstWord].concat(rest).join(' ');
     self._client.say(self.channel, text);
     cb(null, text);
   });
