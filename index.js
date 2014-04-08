@@ -1,6 +1,10 @@
 var fs = require('fs'),
     irc = require('irc'),
-    markov = require('markov');
+    level = require('level'),
+    markov = require('markov'),
+    db = level('./db');
+
+function nop() {}
 
 function Markbot(channel, nickname, server) {
   if (!server) {
@@ -9,7 +13,6 @@ function Markbot(channel, nickname, server) {
 
   this.nickname = nickname;
   this.channel = channel;
-  this._userText = {};
 
   this._client = new irc.Client(server, nickname, {
     channels: [channel]
@@ -47,18 +50,31 @@ Markbot.prototype._isSay = function(text) {
   }
 };
 
-Markbot.prototype._recordForUser = function(userName, text) {
-  this._userText[userName] = this._userText[userName] || [];
-  this._userText[userName].push(text);
+Markbot.prototype._recordForUser = function(userName, text, cb) {
+  if (!cb) {
+    cb = nop;
+  }
+
+  db.get(userName, function(err, data) {
+    if (err.notFound) {
+      data = [];
+    }
+    else if (err) {
+      return cb(err);
+    }
+
+    data.push(text);
+    db.put(userName, data, cb);
+  });
+};
+
+Markbot.prototype._getTextForUser = function(userName, cb) {
+  db.get(userName, cb);
 };
 
 Markbot.prototype.sayForUser = function(userName, limit, cb) {
   if (typeof limit == 'function') {
     cb = limit;
-    limit = 10;
-  }
-
-  if (limit === undefined) {
     limit = 10;
   }
 

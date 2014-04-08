@@ -10,6 +10,7 @@
   "license": "BSD-2-Clause",
   "dependencies": {
     "irc": "~0.3.6",
-    "markov": "0.0.7"
+    "markov": "0.0.7",
+    "level": "~0.18.0"
   }
 }
