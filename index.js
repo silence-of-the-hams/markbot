@@ -2,19 +2,24 @@ var fs = require('fs'),
     irc = require('irc'),
     level = require('level'),
     markov = require('markov'),
-    db = level('./db');
+    db = level('./db', {valueEncoding: 'json'});
 
 function nop() {}
 
-function Markbot(channel, nickname, server) {
+function Markbot(channel, nickname, server, ircConstructor) {
   if (!server) {
     server = 'chat.freenode.net';
+  }
+
+  // inject irc constructor
+  if (!ircConstructor) {
+    ircConstructor = irc;
   }
 
   this.nickname = nickname;
   this.channel = channel;
 
-  this._client = new irc.Client(server, nickname, {
+  this._client = new ircConstructor.Client(server, nickname, {
     channels: [channel]
   });
 
@@ -56,7 +61,7 @@ Markbot.prototype._recordForUser = function(userName, text, cb) {
   }
 
   db.get(userName, function(err, data) {
-    if (err && err.notFound) {
+    if ((err && err.notFound) || data == undefined) {
       data = [];
     }
     else if (err) {
@@ -79,20 +84,30 @@ Markbot.prototype.sayForUser = function(userName, limit, cb) {
   }
 
   var m = markov(1),
-      userText = this._userText[userName].join(' '),
       self = this;
 
-  if (!userText) {
-    return cb(new Error('no text for user ' + userName));
-  }
+  db.get(userName, function(err, userText) {
+    if (err) {
+      if (err.notFound) {
+        self._client.say(self.channel, 'Nothing yet for ' + userName + '.');
+        return cb();
+      }
+      else {
+        console.error('got an error trying to get T_T', err);
+        return cb(err);
+      }
+    }
 
+    userText = userText.join(' ');
 
-  m.seed(userText, function() {
-    var firstWord = m.pick(),
-        rest = m.forward(firstWord, limit),
-        text = [userName, 'says', firstWord].concat(rest).join(' ');
-    self._client.say(self.channel, text);
-    cb(null, text);
+    m.seed(userText, function() {
+      var firstWord = m.pick(),
+          rest = m.forward(firstWord, limit),
+          text = [userName, 'says', firstWord].concat(rest).join(' ');
+      self._client.say(self.channel, text);
+
+      cb(null, text);
+    });
   });
 };
 
