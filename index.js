@@ -56,7 +56,7 @@ Markbot.prototype._recordForUser = function(userName, text, cb) {
   }
 
   db.get(userName, function(err, data) {
-    if (err.notFound) {
+    if (err && err.notFound) {
       data = [];
     }
     else if (err) {
